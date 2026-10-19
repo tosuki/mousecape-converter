@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+#
+# cursor2cape - Launcher executável para o conversor de temas Mousecape
+# Pode ser copiado ou linkado diretamente para /usr/local/bin, ~/.local/bin ou qualquer pasta no PATH.
+#
+
+set -e
+
+# 1. Identifica o interpretador Python 3 do sistema
+PYTHON_BIN="$(which python3 2>/dev/null || true)"
+
+if [ -z "$PYTHON_BIN" ]; then
+    echo "Erro: Python 3 não foi encontrado no seu PATH. Por favor, instale o Python 3.9+." >&2
+    exit 1
+fi
+
+# 2. Localiza onde está instalado o pacote cursor2cape
+PACKAGE_DIR=""
+
+# Verifica se cursor2cape já está instalado no ambiente global/user do Python
+if "$PYTHON_BIN" -c "import cursor2cape" 2>/dev/null; then
+    exec "$PYTHON_BIN" -m cursor2cape "$@"
+fi
+
+# Se não estiver no site-packages, localiza pelo diretório de desenvolvimento
+if [ -n "$CURSOR2CAPE_HOME" ] && [ -d "$CURSOR2CAPE_HOME/cursor2cape" ]; then
+    PACKAGE_DIR="$CURSOR2CAPE_HOME"
+else
+    # Tenta resolver o caminho real caso seja symlink ou execução direta
+    SOURCE="${BASH_SOURCE[0]}"
+    while [ -h "$SOURCE" ]; do
+        DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+        SOURCE="$(readlink "$SOURCE")"
+        [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+    done
+    SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+
+    if [ -d "$SCRIPT_DIR/cursor2cape" ]; then
+        PACKAGE_DIR="$SCRIPT_DIR"
+    elif [ -d "/Users/carlos/Documents/Projects/tmp/cursor2cape" ]; then
+        PACKAGE_DIR="/Users/carlos/Documents/Projects/tmp"
+    fi
+fi
+
+if [ -z "$PACKAGE_DIR" ]; then
+    echo "Erro: O pacote 'cursor2cape' não foi encontrado." >&2
+    echo "Defina a variável CURSOR2CAPE_HOME para a pasta do projeto ou instale com: pip install -e /caminho/do/projeto" >&2
+    exit 1
+fi
+
+# 3. Verifica dependências essenciais
+if ! "$PYTHON_BIN" -c "import PIL, rich, questionary" 2>/dev/null; then
+    echo "Aviso: Dependências ausentes detectadas. Instalando pacotes necessários..." >&2
+    "$PYTHON_BIN" -m pip install --user -r "$PACKAGE_DIR/requirements.txt" || true
+fi
+
+# 4. Executa a aplicação TUI repassando todos os argumentos de linha de comando
+export PYTHONPATH="$PACKAGE_DIR${PYTHONPATH:+:$PYTHONPATH}"
+exec "$PYTHON_BIN" -m cursor2cape "$@"
