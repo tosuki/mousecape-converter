@@ -20,3 +20,7 @@ ENV/
 .DS_Store
 .AppleDouble
 .LSOverride
+
+# Themes and generated capes
+Yaru-Orange/
+*.cape
